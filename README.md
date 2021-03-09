@@ -2,6 +2,7 @@
 This project implements a Double Deep Q-Network Agent (DDQN) which can be easily tuned via config parameters to solve a wide range of OpenAI-gym simulations. In addition to the agent, a simulator class is included, which serves as a wrapper around the OpenAI library to collect model weights & metrics during training & is used to profile the model's loss function; rewards, and epsilon decay during training.
 
 To see an example of how to use this library, see CartPole_Example.ipynb which goes through the steps of training a model to solve the 'Cartpole-v1' controls problem.
+ - Cartpole-v1 Solution: [Cartpole Notebook](https://github.com/andersonvc/rlagent/blob/main/CartPole_Example.ipynb)
 
 In order to use the agent, a transition model will need to be initialized and passed in as a config parameter. (In the library examples, the transition model is built using pytorch). The agent allows the user to set the following parameters:
  - memory_size: max number of state-action entries that can be stored in the memory buffer
