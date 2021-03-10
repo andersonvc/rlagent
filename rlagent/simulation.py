@@ -15,15 +15,17 @@ class Simulator:
         self.train_model = args['train_model'] if 'train_model' in args else True
         self.plot_filepath = args['plot_filepath'] if 'plot_filepath' in args else 'training_plot.png'
         self.early_stopping_condition = args['early_stopping_condition'] if 'early_stopping_condition' in args else None
+        self.episode_cnt = args['episode_cnt'] if 'episode_cnt' in args else 10
     
     def run(self):
-        trial_cnt = 10
         if self.train_model:
             self.terminate_early=False
             self.train_metrics = {'epsilon':[],'rewards':[],'loss':[]}
             for i in range(self.training_epochs):
-                for trial in range(trial_cnt):
+                for trial in range(self.episode_cnt):
                     self.run_trial()
+                
+                self.agent.base_transition_network.train()
                 curr_loss_mean,curr_loss_std = self.agent.update_transition_model()
                 self.train_metrics['loss'].append((i,curr_loss_mean,curr_loss_std))
                 self.train_metrics['epsilon'].append((i,self.agent.epsilon))
@@ -31,8 +33,10 @@ class Simulator:
                 if i%25==0 and i:
                     total_rewards = 0
                     trial_cnt = 10
+                    self.agent.base_transition_network.eval()
                     for j in range(trial_cnt):
                         total_rewards+=self.run_trial(use_epsilon=False)
+                    self.agent.base_transition_network.train()
                     self.train_metrics['rewards'].append((i,total_rewards/trial_cnt))
                     #self.train_metrics['epsilon'].append(self.agent.epsilon)
                     print(f"Epoch: {i}/{self.training_epochs}, Rewards: {self.train_metrics['rewards'][-1]}, Loss: {self.train_metrics['loss'][-1][1]},Epsilon: {self.train_metrics['epsilon'][-1][1]}, Memory: {len(self.agent.memory)}")
@@ -48,6 +52,8 @@ class Simulator:
         
         self.test_rewards = []
         self.agent.load_weights()
+        self.agent.base_transition_network.eval()
+        trial_cnt=10
         for trial in range(trial_cnt):
             self.test_rewards.append(self.run_trial(use_epsilon=False,use_visualization=self.visualize_test))
         self.env.close()
@@ -70,14 +76,16 @@ class Simulator:
             if use_visualization:
                 self.env.render()
             
-            if done and cum_reward<499:
-                r = -100
+            # Add reward shaping for CartPole-v1
+            if self.env.spec.id=='CartPole-v1':
+                if done and cum_reward<499:
+                    r = -100
             
             transition = {'s':curr_state,'s_prime':s_prime,'a':action,'r':r,'is_done':done}
 
             if use_epsilon:
                 self.agent.append_replay(transition)
-            cum_reward += 1
+            cum_reward += r
             curr_state = s_prime
             
         return cum_reward
@@ -98,7 +106,7 @@ class Simulator:
 
         df = pd.DataFrame(self.train_metrics['rewards'],columns=['Epoch','Reward'])
         sns.lineplot(ax=axes[1,0],data=df,x='Epoch',y='Reward')
-        axes[1,0].set_ylim(0, df['Reward'].max()+10)
+        axes[1,0].set_ylim(df['Reward'].min()-10, df['Reward'].max()+10)
         df = pd.DataFrame(self.train_metrics['epsilon'],columns=['Epoch','Epsilon'])
         sns.lineplot(ax=axes[1,1],data=df,x='Epoch',y='Epsilon')
         axes[1,1].set_ylim(0, df['Epsilon'].max())
